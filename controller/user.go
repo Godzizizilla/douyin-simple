@@ -1,9 +1,10 @@
 package controller
 
 import (
+	"github.com/Godzizizilla/douyin-simple/database"
+	"github.com/Godzizizilla/douyin-simple/utils"
 	"github.com/gin-gonic/gin"
 	"net/http"
-	"sync/atomic"
 )
 
 // usersLoginInfo use map to store user info, and key is username+password for demo
@@ -36,23 +37,32 @@ func Register(c *gin.Context) {
 	username := c.Query("username")
 	password := c.Query("password")
 
-	token := username + password
-
-	if _, exist := usersLoginInfo[token]; exist {
+	if exist, _ := database.IsUserExists(username); exist {
 		c.JSON(http.StatusOK, UserLoginResponse{
 			Response: Response{StatusCode: 1, StatusMsg: "User already exist"},
 		})
 	} else {
-		atomic.AddInt64(&userIdSequence, 1)
-		newUser := User{
-			Id:   userIdSequence,
-			Name: username,
+		// 对密码进行加密
+		hashedPassword, err := utils.HashPassword(password)
+		if err != nil {
+			panic("Error hashing password:")
 		}
-		usersLoginInfo[token] = newUser
+		// 创建用户数据
+		user := database.User{Name: username, PasswordHash: hashedPassword}
+		// 添加用户
+		userID, err := database.AddUser(&user)
+		// 添加失败
+		if err != nil {
+			c.JSON(http.StatusOK, UserLoginResponse{
+				Response: Response{StatusCode: 1, StatusMsg: "register failed"},
+			})
+		}
+		// 添加成功, 生成token
+		token, err := utils.GenerateToken(userID)
 		c.JSON(http.StatusOK, UserLoginResponse{
 			Response: Response{StatusCode: 0},
-			UserId:   userIdSequence,
-			Token:    username + password,
+			UserId:   userID,
+			Token:    token,
 		})
 	}
 }
@@ -61,29 +71,56 @@ func Login(c *gin.Context) {
 	username := c.Query("username")
 	password := c.Query("password")
 
-	token := username + password
-
-	if user, exist := usersLoginInfo[token]; exist {
+	// 用户是否存在, 存在返回PasswordHash
+	exist, hashedPassword := database.IsUserExists(username)
+	if !exist {
+		c.JSON(http.StatusOK, UserLoginResponse{
+			Response: Response{StatusCode: 1, StatusMsg: "User doesn't exist"},
+		})
+	}
+	// 用户密码是否正确
+	if err := utils.VerifyPassword(password, hashedPassword); err == nil {
+		userID, err := database.GetUserIdByName(username)
+		if err != nil {
+			println(err)
+			return
+		}
+		token, err := utils.GenerateToken(userID)
 		c.JSON(http.StatusOK, UserLoginResponse{
 			Response: Response{StatusCode: 0},
-			UserId:   user.Id,
+			UserId:   userID,
 			Token:    token,
 		})
 	} else {
 		c.JSON(http.StatusOK, UserLoginResponse{
-			Response: Response{StatusCode: 1, StatusMsg: "User doesn't exist"},
+			Response: Response{StatusCode: 1, StatusMsg: "Password error"},
 		})
 	}
 }
 
 func UserInfo(c *gin.Context) {
 	token := c.Query("token")
-
-	if user, exist := usersLoginInfo[token]; exist {
-		c.JSON(http.StatusOK, UserResponse{
-			Response: Response{StatusCode: 0},
-			User:     user,
-		})
+	claims, err := utils.AuthenticateToken(token)
+	if err == nil {
+		// 获取用户信息
+		userInfo, err := database.GetUserInfoByID(claims.ID)
+		if err == nil {
+			user := User{
+				Id:            userInfo.ID,
+				Name:          userInfo.Name,
+				FollowCount:   int64(userInfo.FollowCount),
+				FollowerCount: int64(userInfo.FollowerCount),
+				IsFollow:      false,
+			}
+			c.JSON(http.StatusOK, UserResponse{
+				Response: Response{StatusCode: 0},
+				User:     user,
+			})
+		} else {
+			c.JSON(http.StatusOK, UserResponse{
+				Response: Response{StatusCode: 1, StatusMsg: "get User Info failed"},
+			})
+		}
 	} else {
 		c.JSON(http.StatusOK, UserResponse{
 			Response: Response{StatusCode: 1, StatusMsg: "User doesn't exist"},
