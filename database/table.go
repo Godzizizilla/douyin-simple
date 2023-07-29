@@ -26,3 +26,13 @@ type User struct {
 
 	PasswordHash string
 }
+
+type Video struct {
+	CustomModel
+	UserID        int64
+	Title         string
+	PlayUrl       string
+	CoverUrl      string
+	FavoriteCount int64
+	CommentCount  int64
+}

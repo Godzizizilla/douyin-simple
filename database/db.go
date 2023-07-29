@@ -23,7 +23,7 @@ func InitDB() {
 	DB = db
 	fmt.Println("Connected to the database!")
 
-	db.AutoMigrate(&User{})
+	db.AutoMigrate(&User{}, &Video{})
 }
 
 func IsUserExists(name string) (bool, string) {
@@ -63,4 +63,15 @@ func GetUserInfoByID(id int64) (*User, error) {
 	} else {
 		return nil, errors.New("get user info by id failed")
 	}
+}
+
+func AddVideo(video *Video) error {
+	if err := DB.Create(video).Error; err != nil {
+		return errors.New("add video failed")
+	}
+	return nil
+}
+
+func GetVideosByUserID(userID int64, videos *[]Video) {
+	DB.Where("user_id = ?", userID).Find(&videos)
 }
