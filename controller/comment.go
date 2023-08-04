@@ -1,6 +1,6 @@
 package controller
 
-import (
+/*import (
 	"github.com/gin-gonic/gin"
 	"net/http"
 )
@@ -45,3 +45,4 @@ func CommentList(c *gin.Context) {
 		CommentList: DemoComments,
 	})
 }
+*/

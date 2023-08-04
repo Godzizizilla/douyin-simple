@@ -3,6 +3,7 @@ package controller
 import (
 	"fmt"
 	"github.com/Godzizizilla/douyin-simple/database"
+	"github.com/Godzizizilla/douyin-simple/module"
 	"github.com/Godzizizilla/douyin-simple/utils"
 	"github.com/gin-gonic/gin"
 	"net/http"
@@ -12,136 +13,89 @@ import (
 	"time"
 )
 
-var basicUrl = "http://172.22.22.94:8080/"
+var basicUrl = "http://192.168.124.2:8080"
 
-type VideoListResponse struct {
-	Response
-	VideoList []Video `json:"video_list"`
-}
-
-// Publish check token then save upload file to public directory
 func Publish(c *gin.Context) {
-	// TODO JWT认证
-	token := c.PostForm("token")
-	claims, err := utils.AuthenticateToken(token)
-	if err != nil {
-		c.JSON(http.StatusOK, Response{
-			StatusCode: 1,
-			StatusMsg:  "用户不存在",
-		})
-		return
-	}
-
+	userID := c.MustGet("userID").(uint)
+	title := c.PostForm("title")
 	data, err := c.FormFile("data")
 	if err != nil {
-		c.JSON(http.StatusOK, Response{
+		c.JSON(http.StatusOK, module.Response{
 			StatusCode: 1,
-			StatusMsg:  err.Error(),
+			StatusMsg:  "上传失败",
 		})
 		return
 	}
 
-	title := c.PostForm("title")
-
+	// 保存视频
 	timestamp := time.Now().Unix()
-
-	filename := filepath.Base(data.Filename)
-	finalName := fmt.Sprintf("%d_%d_%s", claims.ID, timestamp, filename)
-	saveFile := filepath.Join("./public/", finalName)
-	if err := c.SaveUploadedFile(data, saveFile); err != nil {
-		c.JSON(http.StatusOK, Response{
+	videoFileName := fmt.Sprintf("%d_%d_%s", userID, timestamp, filepath.Base(data.Filename))
+	videoSavePath := filepath.Join("./public/", videoFileName)
+	videoSaveAbsolutePath, _ := filepath.Abs(videoSavePath)
+	if err := c.SaveUploadedFile(data, videoSavePath); err != nil {
+		c.JSON(http.StatusOK, module.Response{
 			StatusCode: 1,
-			StatusMsg:  err.Error(),
+			StatusMsg:  "发布失败",
 		})
 		return
 	}
 
-	// 生成视频封面
-	// ffmpeg -i input_video.mp4 -vf "select='eq(pict_type,PICT_TYPE_I)'" -vframes 1 output_frame.jpg
-	outputImagePath := utils.ChangeExtension(saveFile, ".jpg")
-	saveFileAbsolutePath, _ := filepath.Abs(saveFile)
-	outputImagePathAbsolutePath, _ := filepath.Abs(outputImagePath)
+	// 生成视频封面 ffmpeg -i input_video.mp4 -vf "select='eq(pict_type,PICT_TYPE_I)'" -vframes 1 output_frame.jpg
+	imageFileName := utils.ChangeExtension(videoFileName, ".jpg")
+	imageSavePath := filepath.Join("./public/", imageFileName)
+	imageSaveAbsolutePath, _ := filepath.Abs(imageSavePath)
 
-	cmd := exec.Command("ffmpeg", "-i", saveFileAbsolutePath, "-vf", "select='eq(pict_type,PICT_TYPE_I)'", "-vframes", "1", outputImagePathAbsolutePath)
-	output, err2 := cmd.CombinedOutput()
-	if err2 != nil {
-		fmt.Println("Error:", err2)
-		fmt.Println("Output:", string(output))
-		return
-	}
+	cmd := exec.Command("ffmpeg", "-i", videoSaveAbsolutePath, "-vf", "select='eq(pict_type,PICT_TYPE_I)'", "-vframes", "1", imageSaveAbsolutePath)
+	cmd.Run()
 
-	// TODO 将视频url存入数据库
-	if err := database.AddVideo(&database.Video{
-		UserID:        claims.ID,
-		Title:         title,
-		PlayUrl:       saveFile,
-		CoverUrl:      outputImagePath,
-		FavoriteCount: 0,
-		CommentCount:  0,
+	// 存入数据库
+	if err := database.AddVideo(&module.Video{
+		UserID:   userID,
+		Title:    title,
+		PlayUrl:  basicUrl + "/static/" + videoFileName,
+		CoverUrl: basicUrl + "/static/" + imageFileName,
 	}); err != nil {
-		c.JSON(http.StatusOK, Response{
+		c.JSON(http.StatusOK, module.Response{
 			StatusCode: 1,
-			StatusMsg:  err.Error(),
+			StatusMsg:  "发布失败",
 		})
 		return
 	}
 
-	c.JSON(http.StatusOK, Response{
+	c.JSON(http.StatusOK, module.Response{
 		StatusCode: 0,
-		StatusMsg:  finalName + " uploaded successfully",
+		StatusMsg:  "发布成功",
 	})
 }
 
-// PublishList all users have same publish video list
 func PublishList(c *gin.Context) {
-	token := c.Query("token")
-	_, err := utils.AuthenticateToken(token)
-	if err != nil {
-		c.JSON(http.StatusOK, Response{
-			StatusCode: 1,
-			StatusMsg:  "用户不存在",
-		})
-		return
-	}
+	userID, _ := strconv.Atoi(c.Query("user_id"))
 
-	userID, err := strconv.ParseInt(c.Query("user_id"), 10, 64)
+	user, err := database.GetUserInfoByID(uint(userID))
 	if err != nil {
-		c.JSON(http.StatusOK, Response{
+		c.JSON(http.StatusOK, module.Response{
 			StatusCode: 1,
 			StatusMsg:  "用户ID错误",
 		})
 		return
 	}
 
-	var videos []database.Video
-	database.GetVideosByUserID(userID, &videos)
-
-	userInfo, err := database.GetUserInfoByID(userID)
-	user := User{
-		Id:            userInfo.ID,
-		Name:          userInfo.Name,
-		FollowCount:   int64(userInfo.FollowCount),
-		FollowerCount: int64(userInfo.FollowerCount),
-		IsFollow:      false,
-	}
-	var videoList []Video
-	for _, video := range videos {
-		videoList = append(videoList, Video{
-			Id:            video.ID,
-			Author:        user,
-			PlayUrl:       basicUrl + video.PlayUrl,
-			CoverUrl:      basicUrl + video.CoverUrl,
-			FavoriteCount: video.FavoriteCount,
-			CommentCount:  video.CommentCount,
-			// TODO
-			IsFavorite: false,
-		})
-	}
-
-	c.JSON(http.StatusOK, VideoListResponse{
-		Response: Response{
+	videos, err := database.GetUserVideosByID(uint(userID))
+	if err != nil {
+		c.JSON(http.StatusOK, module.Response{
 			StatusCode: 0,
-		},
-		VideoList: videoList,
+			StatusMsg:  "用户未发布视频",
+		})
+		return
+	}
+
+	for _, video := range *videos {
+		video.Author = user
+	}
+
+	c.JSON(http.StatusOK, module.VideoListResponse{
+		Response:  module.Response{StatusCode: 0},
+		VideoList: *videos,
 	})
+
 }

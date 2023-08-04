@@ -1,5 +1,6 @@
 package service
 
+/*
 import (
 	"encoding/json"
 	"fmt"
@@ -70,4 +71,4 @@ func process(conn net.Conn) {
 			fmt.Printf("Push message failed: %v\n", err)
 		}
 	}
-}
+}*/

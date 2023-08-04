@@ -3,8 +3,10 @@ package database
 import (
 	"errors"
 	"fmt"
+	"github.com/Godzizizilla/douyin-simple/module"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+	"time"
 )
 
 var (
@@ -23,55 +25,65 @@ func InitDB() {
 	DB = db
 	fmt.Println("Connected to the database!")
 
-	db.AutoMigrate(&User{}, &Video{})
+	db.AutoMigrate(&module.User{}, &module.Video{})
 }
 
-func IsUserExists(name string) (bool, string) {
-	var user User
-	err := DB.Where("name = ?", name).First(&user).Error
-	if err == nil {
-		return true, user.PasswordHash // 用户名已存在
-	} else if errors.Is(err, gorm.ErrRecordNotFound) {
-		return false, "" // 用户名不存在
+func GetUserInfoByID(userID uint) (*module.ApiUser, error) {
+	var user module.ApiUser
+	if err := DB.Model(&module.User{}).First(&user, userID).Error; err != nil {
+		return nil, errors.New("get user info by id failed")
 	}
-	// TODO 处理数据库查询错误
-	return false, ""
+	return &user, nil
 }
 
-func AddUser(user *User) (int64, error) {
-	if err := DB.Create(user).Error; err != nil {
+func GetUserByUsername(username string) (userID uint, encryptedPassword string, err error) {
+	var result struct {
+		ID                uint
+		EncryptedPassword string
+	}
+	err = DB.Model(&module.User{}).Select("id", "encrypted_password").First(&result, "name = ?", username).Error
+	if err != nil {
+		return 0, "", errors.New("user not found")
+	}
+	return result.ID, result.EncryptedPassword, nil
+}
+
+func AddUser(userName string, password string) (userID uint, err error) {
+	var user = module.User{
+		Name:              userName,
+		EncryptedPassword: password,
+	}
+	if err := DB.Create(&user).Error; err != nil {
 		return 0, errors.New("add user failed")
 	}
 	return user.ID, nil
 }
 
-func GetUserIdByName(name string) (int64, error) {
-	var user User
-	err := DB.Where("name = ?", name).First(&user).Error
-	if err == nil {
-		return user.ID, nil
-	} else {
-		return 0, errors.New("get user id failed")
-	}
-}
-
-func GetUserInfoByID(id int64) (*User, error) {
-	var user User
-	err := DB.First(&user, id).Error
-	if err == nil {
-		return &user, nil
-	} else {
-		return nil, errors.New("get user info by id failed")
-	}
-}
-
-func AddVideo(video *Video) error {
+func AddVideo(video *module.Video) error {
 	if err := DB.Create(video).Error; err != nil {
 		return errors.New("add video failed")
 	}
 	return nil
 }
 
-func GetVideosByUserID(userID int64, videos *[]Video) {
-	DB.Where("user_id = ?", userID).Find(&videos)
+func GetUserVideosByID(userID uint) (*[]module.ApiVideo, error) {
+	var videos []module.ApiVideo
+	if err := DB.Model(&module.Video{}).Find(&videos, "user_id = ?", userID).Error; err != nil {
+		return nil, errors.New("该用户未发布视频")
+	}
+	return &videos, nil
+}
+
+func GetVideosBeforeTimestamp(timestamp time.Time) (*[]module.ApiVideo, error) {
+	/*
+		var video module.Video
+		db.Model(&module.Video{}).Joins("User").Where("user_id = ?", 4).Find(&video)
+		fmt.Println(video.User.Name)
+	*/
+
+	var videos []module.ApiVideo
+	if err := DB.Model(&module.Video{}).Where("created_at < ?", timestamp).Find(&videos).Error; err != nil {
+		return nil, errors.New("没有在这之前的视频")
+	}
+	return &videos, nil
 }

@@ -1,6 +1,6 @@
 package controller
 
-import (
+/*import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"net/http"
@@ -66,4 +66,4 @@ func genChatKey(userIdA int64, userIdB int64) string {
 		return fmt.Sprintf("%d_%d", userIdB, userIdA)
 	}
 	return fmt.Sprintf("%d_%d", userIdA, userIdB)
-}
+}*/

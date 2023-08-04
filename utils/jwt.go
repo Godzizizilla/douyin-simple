@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"fmt"
+	"errors"
 	"github.com/dgrijalva/jwt-go"
 	"time"
 )
@@ -9,14 +9,14 @@ import (
 var secretKey = []byte("secret_key")
 
 type Claims struct {
-	ID int64 `json:"id"`
+	UserID uint `json:"id"`
 	jwt.StandardClaims
 }
 
-func GenerateToken(id int64) (string, error) {
+func GenerateToken(id uint) (string, error) {
 	expirationTime := time.Now().Add(24 * time.Hour)
 	claims := &Claims{
-		ID: id,
+		UserID: id,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: expirationTime.Unix(),
 			IssuedAt:  time.Now().Unix(),
@@ -31,18 +31,19 @@ func GenerateToken(id int64) (string, error) {
 	return signedToken, nil
 }
 
-func AuthenticateToken(tokenString string) (*Claims, error) {
+func AuthenticateToken(tokenString string) (uint, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
 		return secretKey, nil
 	})
 
+	// 解析Token错误
 	if err != nil {
-		return nil, err
+		return 0, errors.New("invalid token")
 	}
 
+	// 验证Token是否有效
 	if claims, ok := token.Claims.(*Claims); ok && token.Valid {
-		return claims, nil
+		return claims.UserID, nil
 	}
-
-	return nil, fmt.Errorf("invalid token")
+	return 0, errors.New("invalid token")
 }

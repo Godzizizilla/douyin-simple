@@ -1,6 +1,6 @@
 package controller
 
-import (
+/*import (
 	"github.com/gin-gonic/gin"
 	"net/http"
 )
@@ -24,4 +24,4 @@ func FavoriteList(c *gin.Context) {
 		},
 		VideoList: DemoVideos,
 	})
-}
+}*/

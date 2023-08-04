@@ -1,5 +1,6 @@
 package controller
 
+/*
 import (
 	"github.com/gin-gonic/gin"
 	"net/http"
@@ -49,4 +50,4 @@ func FriendList(c *gin.Context) {
 		},
 		UserList: []User{DemoUser},
 	})
-}
+}*/

@@ -2,15 +2,15 @@ package main
 
 import (
 	"github.com/Godzizizilla/douyin-simple/database"
-	"github.com/Godzizizilla/douyin-simple/service"
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
-	go service.RunMessageServer()
+	// go service.RunMessageServer()
 
 	// init database connection
 	database.InitDB()
+	return
 
 	r := gin.Default()
 
