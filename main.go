@@ -10,7 +10,6 @@ func main() {
 
 	// init database connection
 	database.InitDB()
-	return
 
 	r := gin.Default()
 

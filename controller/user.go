@@ -73,7 +73,7 @@ func UserInfo(c *gin.Context) {
 	userID, _ := strconv.Atoi(c.Query("user_id"))
 
 	// 获取用户信息
-	userInfo, err := database.GetUserInfoByID(uint(userID))
+	userInfo, err := database.GetUserInfoByID(uint(userID), uint(userID))
 	if err != nil {
 		c.JSON(http.StatusOK, module.Response{
 			StatusCode: 1,

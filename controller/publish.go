@@ -70,8 +70,9 @@ func Publish(c *gin.Context) {
 
 func PublishList(c *gin.Context) {
 	userID, _ := strconv.Atoi(c.Query("user_id"))
+	currentUserID := c.MustGet("userID").(uint)
 
-	user, err := database.GetUserInfoByID(uint(userID))
+	user, err := database.GetUserInfoByID(uint(userID), currentUserID)
 	if err != nil {
 		c.JSON(http.StatusOK, module.Response{
 			StatusCode: 1,
@@ -80,7 +81,7 @@ func PublishList(c *gin.Context) {
 		return
 	}
 
-	videos, err := database.GetUserVideosByID(uint(userID))
+	videos, err := database.GetPublishVideosByUserID(uint(userID))
 	if err != nil {
 		c.JSON(http.StatusOK, module.Response{
 			StatusCode: 0,
@@ -90,7 +91,7 @@ func PublishList(c *gin.Context) {
 	}
 
 	for _, video := range *videos {
-		video.Author = user
+		video.Author = *user
 	}
 
 	c.JSON(http.StatusOK, module.VideoListResponse{

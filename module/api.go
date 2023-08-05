@@ -13,18 +13,18 @@ type UserResponse struct {
 
 type UserInfoResponse struct {
 	Response
-	User ApiUser `json:"user"`
+	User User `json:"user"`
 }
 
 type VideoListResponse struct {
 	Response
-	VideoList []ApiVideo `json:"video_list"`
+	VideoList []Video `json:"video_list"`
 }
 
 type FeedResponse struct {
 	Response
-	VideoList []ApiVideo `json:"video_list,omitempty"`
-	NextTime  int64      `json:"next_time,omitempty"`
+	VideoList []Video `json:"video_list,omitempty"`
+	NextTime  int64   `json:"next_time,omitempty"`
 }
 
 type ApiUser struct {

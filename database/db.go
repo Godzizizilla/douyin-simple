@@ -26,13 +26,22 @@ func InitDB() {
 	fmt.Println("Connected to the database!")
 
 	db.AutoMigrate(&module.User{}, &module.Video{})
+
+	/*var video module.Video
+	db.Model(&module.Video{}).
+		Joins("LEFT JOIN like_videos ON videos.id = like_videos.video_id").
+		Where("like_videos.user_id = ?", 4).
+		Select("videos.*, EXISTS(SELECT 1 FROM like_videos WHERE like_videos.user_id = ? AND like_videos.video_id = videos.id) AS is_favorite", 4).
+		First(&video, 2)
+	fmt.Println(video.IsFavorite)*/
 }
 
-func GetUserInfoByID(userID uint) (*module.ApiUser, error) {
-	var user module.ApiUser
+func GetUserInfoByID(userID uint, currentUserID uint) (*module.User, error) {
+	var user module.User
 	if err := DB.Model(&module.User{}).First(&user, userID).Error; err != nil {
 		return nil, errors.New("get user info by id failed")
 	}
+	checkIsFollow(&user, currentUserID)
 	return &user, nil
 }
 
@@ -63,27 +72,116 @@ func AddVideo(video *module.Video) error {
 	if err := DB.Create(video).Error; err != nil {
 		return errors.New("add video failed")
 	}
+	DB.Model(&module.User{}).Where("id = ?", video.UserID).Update("work_count", gorm.Expr("work_count + ?", 1))
 	return nil
 }
 
-func GetUserVideosByID(userID uint) (*[]module.ApiVideo, error) {
-	var videos []module.ApiVideo
+func GetPublishVideosByUserID(userID uint) (*[]module.Video, error) {
+	var videos []module.Video
+	// 由于都是同一个用户的视频, 所以不使用.Joins("Author"), 只查询一次用户的信息, 再批量添加, 该逻辑需要有调用本接口的函数处理
 	if err := DB.Model(&module.Video{}).Find(&videos, "user_id = ?", userID).Error; err != nil {
 		return nil, errors.New("该用户未发布视频")
 	}
+	checkIsFavorite(&videos, userID)
 	return &videos, nil
 }
 
-func GetVideosBeforeTimestamp(timestamp time.Time) (*[]module.ApiVideo, error) {
+func GetFavoriteVideosByUserID(userID uint, currentUserID uint) *[]module.Video {
+	var videos []module.Video
+	DB.Model(&module.Video{}).
+		Joins("Author").
+		Where("videos.id in (SELECT video_id  FROM like_videos WHERE user_id = ?)", userID).
+		Find(&videos)
+	checkIsFavorite(&videos, currentUserID)
+	return &videos
+}
+
+func GetVideosBeforeTimestamp(timestamp time.Time, userID uint) (*[]module.Video, error) {
 	/*
 		var video module.Video
 		db.Model(&module.Video{}).Joins("User").Where("user_id = ?", 4).Find(&video)
 		fmt.Println(video.User.Name)
 	*/
 
-	var videos []module.ApiVideo
-	if err := DB.Model(&module.Video{}).Where("created_at < ?", timestamp).Find(&videos).Error; err != nil {
+	/*	// 填充is_favorite
+		db.Table("videos").
+		Select("videos.*", "EXISTS(SELECT 1 FROM likes WHERE likes.user_id = ? AND likes.video_id = videos.id) AS is_favorite", userId).
+		LeftJoin("likes", "videos.id = likes.video_id").
+		Scan(&videos)
+	*/
+
+	/*  // 填充Author
+	var video module.Video
+	db.Model(&module.Video{}).Joins("Author").Where("user_id = ?", 4).Find(&video)
+	fmt.Println(video.Author.Name)
+	*/
+
+	var videos []module.Video
+	// 由于更可能是不同用户的视频, 所以使用.Joins("Author")
+	if err := DB.Model(&module.Video{}).Joins("Author").Where("videos.created_at < ?", timestamp).Find(&videos).Error; err != nil {
 		return nil, errors.New("没有在这之前的视频")
 	}
+
+	// 判断是否点赞
+	checkIsFavorite(&videos, userID)
+	// 判断是否关注
+	checkIsFollow(&videos, userID)
+
 	return &videos, nil
+}
+
+func FavoriteAction(userID uint, videoID uint, action module.FavoriteAction) error {
+	var isExists bool
+	DB.Model(&module.LikeVideos{}).
+		Select("EXISTS(SELECT 1 FROM like_videos WHERE user_id = ? AND video_id = ?) AS is_exists", userID, videoID).
+		Scan(&isExists)
+	if isExists && action == module.Unlike {
+		DB.Where("user_id = ? AND video_id = ?", userID, videoID).Delete(&module.LikeVideos{})
+		DB.Model(&module.Video{}).Where("id = ?", videoID).Update("favorite_count", gorm.Expr("favorite_count - ?", 1))
+		DB.Model(&module.User{}).Where("id = (select user_id from videos where id = ?)", videoID).Update("total_favorited", gorm.Expr("total_favorited - ?", 1))
+		DB.Model(&module.User{}).Where("id = ?", userID).Update("favorite_count", gorm.Expr("favorite_count - ?", 1))
+		return nil
+	} else if !isExists && action == module.Like {
+		DB.Model(&module.LikeVideos{}).Create(&module.LikeVideos{UserID: userID, VideoID: videoID})
+		DB.Model(&module.Video{}).Where("id = ?", videoID).Update("favorite_count", gorm.Expr("favorite_count + ?", 1))
+		DB.Model(&module.User{}).Where("id = (select user_id from videos where id = ?)", videoID).Update("total_favorited", gorm.Expr("total_favorited + ?", 1))
+		DB.Model(&module.User{}).Where("id = ?", userID).Update("favorite_count", gorm.Expr("favorite_count + ?", 1))
+		return nil
+	}
+	return errors.New("favorite action error")
+}
+
+func checkIsFavorite(videos *[]module.Video, userID uint) {
+	if userID == 0 {
+		return
+	}
+
+	for i := 0; i < len(*videos); i++ {
+		DB.Table("like_videos").
+			Select("EXISTS(SELECT 1 FROM like_videos WHERE user_id = ? AND video_id = ?) AS is_favorite", userID, (*videos)[i].ID).
+			Scan(&(*videos)[i].IsFavorite)
+	}
+}
+
+func checkIsFollow(videos any, userID uint) {
+	if userID == 0 {
+		return
+	}
+
+	switch x := videos.(type) {
+	case *[]module.Video:
+		for i := 0; i < len(*x); i++ {
+			DB.Table("users_follows").
+				Select("EXISTS(SELECT 1 FROM users_follows WHERE user_id = ? AND follow_id = ?) AS is_follow", userID, (*x)[i].Author.ID).
+				Scan(&(*x)[i].Author.IsFollow)
+		}
+
+	case *module.User:
+		if userID == (*x).ID {
+			return
+		}
+		DB.Table("users_follows").
+			Select("EXISTS(SELECT 1 FROM users_follows WHERE user_id = ? AND follow_id = ?) AS is_follow", userID, (*x).ID).
+			Scan(&(*x).IsFollow)
+	}
 }
