@@ -25,12 +25,12 @@ func initRouter(r *gin.Engine) {
 	apiRouter.GET("/favorite/list/", middlewares.JWT, controller.FavoriteList)
 	apiRouter.POST("/comment/action/", middlewares.JWT, controller.CommentAction)
 	apiRouter.GET("/comment/list/", middlewares.JWT, controller.CommentList)
-	/*
-		// extra apis - II
-		apiRouter.POST("/relation/action/", controller.RelationAction)
-		apiRouter.GET("/relation/follow/list/", controller.FollowList)
-		apiRouter.GET("/relation/follower/list/", controller.FollowerList)
-		apiRouter.GET("/relation/friend/list/", controller.FriendList)
-		apiRouter.GET("/message/chat/", controller.MessageChat)
-		apiRouter.POST("/message/action/", controller.MessageAction)*/
+
+	// extra apis - II
+	apiRouter.POST("/relation/action/", middlewares.JWT, controller.RelationAction)
+	apiRouter.GET("/relation/follow/list/", middlewares.JWT, controller.FollowList)
+	apiRouter.GET("/relation/follower/list/", middlewares.JWT, controller.FollowerList)
+	apiRouter.GET("/relation/friend/list/", middlewares.JWT, controller.FriendList)
+	/*apiRouter.GET("/message/chat/", middlewares.JWT, controller.MessageChat)
+	apiRouter.POST("/message/action/", middlewares.JWT, controller.MessageAction)*/
 }

@@ -1,53 +1,72 @@
 package controller
 
-/*
 import (
+	"github.com/Godzizizilla/douyin-simple/database"
+	"github.com/Godzizizilla/douyin-simple/module"
 	"github.com/gin-gonic/gin"
 	"net/http"
+	"strconv"
 )
 
-type UserListResponse struct {
-	Response
-	UserList []User `json:"user_list"`
-}
-
-// RelationAction no practical effect, just check if token is valid
 func RelationAction(c *gin.Context) {
-	token := c.Query("token")
+	currentUserID := c.MustGet("userID").(uint)
+	toUserID, _ := strconv.Atoi(c.Query("to_user_id"))
+	actionType := module.RelationAction(c.Query("action_type"))
 
-	if _, exist := usersLoginInfo[token]; exist {
-		c.JSON(http.StatusOK, Response{StatusCode: 0})
-	} else {
-		c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: "User doesn't exist"})
+	if actionType != module.Follow && actionType != module.UnFollow {
+		c.JSON(http.StatusOK, module.Response{
+			StatusCode: 1,
+			StatusMsg:  "关注/取消关注 失败",
+		})
+		return
 	}
+
+	if currentUserID == uint(toUserID) {
+		c.JSON(http.StatusOK, module.Response{
+			StatusCode: 1,
+			StatusMsg:  "你不能关注自己哦",
+		})
+		return
+	}
+
+	if err := database.RelationAction(uint(toUserID), currentUserID, actionType); err != nil {
+		c.JSON(http.StatusOK, module.Response{
+			StatusCode: 1,
+			StatusMsg:  "关注/取消关注 失败",
+		})
+		return
+	}
+	c.JSON(http.StatusOK, module.Response{
+		StatusCode: 0,
+		StatusMsg:  "关注/取消关注 成功",
+	})
 }
 
-// FollowList all users have same follow list
 func FollowList(c *gin.Context) {
-	c.JSON(http.StatusOK, UserListResponse{
-		Response: Response{
-			StatusCode: 0,
-		},
-		UserList: []User{DemoUser},
+	userID, _ := strconv.Atoi(c.Query("user_id"))
+	followings := database.GetFollowingListByUserID(uint(userID))
+	c.JSON(http.StatusOK, module.UserListResponse{
+		Response: module.Response{StatusCode: 0},
+		UserList: *followings,
 	})
 }
 
-// FollowerList all users have same follower list
 func FollowerList(c *gin.Context) {
-	c.JSON(http.StatusOK, UserListResponse{
-		Response: Response{
-			StatusCode: 0,
-		},
-		UserList: []User{DemoUser},
+	userID, _ := strconv.Atoi(c.Query("user_id"))
+	currentUserID := c.MustGet("userID").(uint)
+	followers := database.GetFollowerListByUserID(uint(userID), currentUserID)
+	c.JSON(http.StatusOK, module.UserListResponse{
+		Response: module.Response{StatusCode: 0},
+		UserList: *followers,
 	})
 }
 
-// FriendList all users have same friend list
 func FriendList(c *gin.Context) {
-	c.JSON(http.StatusOK, UserListResponse{
-		Response: Response{
-			StatusCode: 0,
-		},
-		UserList: []User{DemoUser},
+	userID, _ := strconv.Atoi(c.Query("user_id"))
+	currentUserID := c.MustGet("userID").(uint)
+	friends := database.GetFriendListByUserID(uint(userID), currentUserID)
+	c.JSON(http.StatusOK, module.UserListResponse{
+		Response: module.Response{StatusCode: 0},
+		UserList: *friends,
 	})
-}*/
+}

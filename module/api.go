@@ -37,6 +37,11 @@ type CommentActionResponse struct {
 	Comment Comment `json:"comment,omitempty"`
 }
 
+type UserListResponse struct {
+	Response
+	UserList []User `json:"user_list"`
+}
+
 type ApiUser struct {
 	ID              uint   `json:"id,omitempty"`                 // 用户ID
 	Name            string `json:"name,omitempty"`               // 名字

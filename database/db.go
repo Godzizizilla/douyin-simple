@@ -175,6 +175,59 @@ func CommentAction(comment *module.Comment, action module.CommentAction) error {
 	return nil
 }
 
+func RelationAction(toUserID uint, currentUserID uint, action module.RelationAction) error {
+	var isExists bool
+	DB.Table("users_follows").
+		Select("EXISTS(SELECT 1 FROM users_follows WHERE user_id = ? AND follow_id = ?) AS is_exists", currentUserID, toUserID).
+		Scan(&isExists)
+	if isExists && action == module.UnFollow {
+		DB.Where("user_id = ? AND follow_id = ?", currentUserID, toUserID).Delete(&module.UsersFollows{})
+		DB.Model(&module.User{}).Where("id = ?", toUserID).Update("follower_count", gorm.Expr("follower_count - ?", 1))
+		DB.Model(&module.User{}).Where("id = ?", currentUserID).Update("follow_count", gorm.Expr("follow_count - ?", 1))
+		return nil
+	} else if !isExists && action == module.Follow {
+		DB.Create(&module.UsersFollows{UserID: currentUserID, FollowID: toUserID})
+		DB.Model(&module.User{}).Where("id = ?", toUserID).Update("follower_count", gorm.Expr("follower_count + ?", 1))
+		DB.Model(&module.User{}).Where("id = ?", currentUserID).Update("follow_count", gorm.Expr("follow_count + ?", 1))
+		return nil
+	}
+	return errors.New("favorite action error")
+}
+
+func GetFollowingListByUserID(userID uint) *[]module.User {
+	var followings []module.User
+	DB.Model(&module.User{}).
+		Where("users.id in (SELECT follow_id FROM users_follows WHERE user_id = ?)", userID).
+		Find(&followings)
+	for i := 0; i < len(followings); i++ {
+		followings[i].IsFollow = true
+	}
+	return &followings
+}
+
+func GetFollowerListByUserID(userID uint, currentUserID uint) *[]module.User {
+	var followings []module.User
+	DB.Model(&module.User{}).
+		Where("users.id in (SELECT user_id FROM users_follows WHERE follow_id = ?)", userID).
+		Find(&followings)
+	checkIsFollow(&followings, currentUserID)
+	return &followings
+}
+
+func GetFriendListByUserID(userID uint, currentUserID uint) *[]module.User {
+	var friends []module.User
+
+	DB.Table("users_follows").
+		Select("u.*").
+		Joins("JOIN users AS u ON users_follows.follow_id = u.id").
+		Where("users_follows.user_id = ?", userID).
+		Scan(&friends)
+	for i := 0; i < len(friends); i++ {
+		friends[i].IsFollow = true
+	}
+	return &friends
+}
+
 func checkIsFavorite(videos *[]module.Video, userID uint) {
 	if userID == 0 {
 		return
@@ -207,7 +260,12 @@ func checkIsFollow(videos any, userID uint) {
 		DB.Table("users_follows").
 			Select("EXISTS(SELECT 1 FROM users_follows WHERE user_id = ? AND follow_id = ?) AS is_follow", userID, (*x).ID).
 			Scan(&(*x).IsFollow)
-
+	case *[]module.User:
+		for i := 0; i < len(*x); i++ {
+			DB.Table("users_follows").
+				Select("EXISTS(SELECT 1 FROM users_follows WHERE user_id = ? AND follow_id = ?) AS is_follow", userID, (*x)[i].ID).
+				Scan(&(*x)[i].IsFollow)
+		}
 	case *[]module.Comment:
 		for i := 0; i < len(*x); i++ {
 			DB.Table("users_follows").

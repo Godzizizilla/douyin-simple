@@ -13,3 +13,10 @@ const (
 	PublishComment CommentAction = "1"
 	DeleteComment  CommentAction = "2"
 )
+
+type RelationAction string
+
+const (
+	Follow   RelationAction = "1"
+	UnFollow RelationAction = "2"
+)

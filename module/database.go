@@ -47,7 +47,7 @@ type Video struct {
 	CommentCount  uint   `json:"comment_count,omitempty"`
 
 	UserID uint `json:"-"`
-	Author User `gorm:"foreignKey:UserID"`
+	Author User `json:"author,omitempty" gorm:"foreignKey:UserID"`
 
 	IsFavorite bool `json:"is_favorite,omitempty" gorm:"-"`
 }
@@ -55,6 +55,11 @@ type Video struct {
 type LikeVideos struct {
 	UserID  uint
 	VideoID uint
+}
+
+type UsersFollows struct {
+	UserID   uint
+	FollowID uint
 }
 
 type Comment struct {
