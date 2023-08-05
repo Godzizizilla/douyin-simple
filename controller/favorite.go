@@ -8,20 +8,19 @@ import (
 	"strconv"
 )
 
-// FavoriteAction no practical effect, just check if token is valid
 func FavoriteAction(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)
 	videoID, _ := strconv.Atoi(c.Query("video_id"))
-	actionType := c.Query("action_type")
+	actionType := module.FavoriteAction(c.Query("action_type"))
 
-	if actionType != "1" && actionType != "2" {
+	if actionType != module.Like && actionType != module.Unlike {
 		c.JSON(http.StatusOK, module.Response{
 			StatusCode: 1,
 			StatusMsg:  "点赞/取消点赞 失败",
 		})
 	}
 
-	if err := database.FavoriteAction(userID, uint(videoID), module.FavoriteAction(actionType)); err != nil {
+	if err := database.FavoriteAction(userID, uint(videoID), actionType); err != nil {
 		c.JSON(http.StatusOK, module.Response{
 			StatusCode: 1,
 			StatusMsg:  "点赞/取消点赞 失败",

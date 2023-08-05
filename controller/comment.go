@@ -1,48 +1,74 @@
 package controller
 
-/*import (
+import (
+	"fmt"
+	"github.com/Godzizizilla/douyin-simple/database"
+	"github.com/Godzizizilla/douyin-simple/module"
 	"github.com/gin-gonic/gin"
 	"net/http"
+	"strconv"
+	"time"
 )
 
-type CommentListResponse struct {
-	Response
-	CommentList []Comment `json:"comment_list,omitempty"`
-}
-
-type CommentActionResponse struct {
-	Response
-	Comment Comment `json:"comment,omitempty"`
-}
-
-// CommentAction no practical effect, just check if token is valid
 func CommentAction(c *gin.Context) {
-	token := c.Query("token")
-	actionType := c.Query("action_type")
+	userID := c.MustGet("userID").(uint)
+	videoID, _ := strconv.Atoi(c.Query("video_id"))
+	actionType := module.CommentAction(c.Query("action_type"))
 
-	if user, exist := usersLoginInfo[token]; exist {
-		if actionType == "1" {
-			text := c.Query("comment_text")
-			c.JSON(http.StatusOK, CommentActionResponse{Response: Response{StatusCode: 0},
-				Comment: Comment{
-					Id:         1,
-					User:       user,
-					Content:    text,
-					CreateDate: "05-01",
-				}})
+	if actionType != module.PublishComment && actionType != module.DeleteComment {
+		c.JSON(http.StatusOK, module.Response{
+			StatusCode: 1,
+			StatusMsg:  "发布/删除评论 失败",
+		})
+	}
+
+	var comment module.Comment
+
+	if actionType == module.PublishComment {
+		now := time.Now()
+		month := now.Month()
+		day := now.Day()
+		dateString := fmt.Sprintf("%02d-%02d", month, day)
+
+		comment.Content = c.Query("comment_text")
+		comment.UserID = userID
+		comment.VideoID = uint(videoID)
+		comment.CreateDate = dateString
+		if err := database.CommentAction(&comment, actionType); err == nil {
+			c.JSON(http.StatusOK, module.CommentActionResponse{
+				Response: module.Response{StatusCode: 0},
+				Comment:  comment,
+			})
 			return
 		}
-		c.JSON(http.StatusOK, Response{StatusCode: 0})
-	} else {
-		c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: "User doesn't exist"})
+
+	} else if actionType == module.DeleteComment {
+		commentID, _ := strconv.Atoi(c.Query("comment_id"))
+		comment.Id = uint(commentID)
+		comment.VideoID = uint(videoID)
+		fmt.Println(commentID, videoID)
+		if err := database.CommentAction(&comment, actionType); err == nil {
+			c.JSON(http.StatusOK, module.Response{
+				StatusCode: 0,
+				StatusMsg:  "删除评论成功",
+			})
+			return
+		}
 	}
+	c.JSON(http.StatusOK, module.Response{
+		StatusCode: 1,
+		StatusMsg:  "发布/删除评论 失败",
+	})
+
 }
 
-// CommentList all videos have same demo comment list
 func CommentList(c *gin.Context) {
-	c.JSON(http.StatusOK, CommentListResponse{
-		Response:    Response{StatusCode: 0},
-		CommentList: DemoComments,
+	userID := c.MustGet("userID").(uint)
+	videoID, _ := strconv.Atoi(c.Query("video_id"))
+
+	comments := database.GetCommentsByVideoID(uint(videoID), userID)
+	c.JSON(http.StatusOK, module.CommentListResponse{
+		Response:    module.Response{StatusCode: 0},
+		CommentList: *comments,
 	})
 }
-*/

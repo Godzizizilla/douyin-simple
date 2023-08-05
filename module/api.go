@@ -27,6 +27,16 @@ type FeedResponse struct {
 	NextTime  int64   `json:"next_time,omitempty"`
 }
 
+type CommentListResponse struct {
+	Response
+	CommentList []Comment `json:"comment_list,omitempty"`
+}
+
+type CommentActionResponse struct {
+	Response
+	Comment Comment `json:"comment,omitempty"`
+}
+
 type ApiUser struct {
 	ID              uint   `json:"id,omitempty"`                 // 用户ID
 	Name            string `json:"name,omitempty"`               // 名字

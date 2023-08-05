@@ -57,6 +57,17 @@ type LikeVideos struct {
 	VideoID uint
 }
 
+type Comment struct {
+	Id         uint      `json:"id,omitempty"`
+	Content    string    `json:"content,omitempty"`
+	CreateDate string    `json:"create_date,omitempty"`
+	CreatedAt  time.Time `json:"-"`
+	UserID     uint      `json:"-"`
+	User       User      `json:"user"`
+	VideoID    uint      `json:"-"`
+	Video      Video     `json:"-"`
+}
+
 func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(u.EncryptedPassword), bcrypt.DefaultCost)
 	if err != nil {

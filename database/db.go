@@ -25,7 +25,7 @@ func InitDB() {
 	DB = db
 	fmt.Println("Connected to the database!")
 
-	db.AutoMigrate(&module.User{}, &module.Video{})
+	db.AutoMigrate(&module.User{}, &module.Video{}, &module.Comment{})
 
 	/*var video module.Video
 	db.Model(&module.Video{}).
@@ -151,6 +151,30 @@ func FavoriteAction(userID uint, videoID uint, action module.FavoriteAction) err
 	return errors.New("favorite action error")
 }
 
+func GetCommentsByVideoID(videoID uint, currentUserID uint) *[]module.Comment {
+	var comments []module.Comment
+	DB.Model(&module.Comment{}).Joins("User").Where("video_id = ?", videoID).Order("created_at desc").Find(&comments)
+	checkIsFollow(&comments, currentUserID)
+	return &comments
+}
+
+func CommentAction(comment *module.Comment, action module.CommentAction) error {
+	if action == module.PublishComment {
+		if err := DB.Model(&module.Comment{}).Create(comment).Error; err != nil {
+			return errors.New("添加评论失败")
+		}
+		DB.Model(&module.Comment{}).Joins("User").First(comment)
+		DB.Model(&module.Video{}).Where("id = ?", comment.VideoID).Update("comment_count", gorm.Expr("comment_count + ?", 1))
+	} else {
+		if err := DB.Delete(&module.Comment{}, comment.Id).Error; err != nil {
+			return errors.New("删除评论失败")
+		}
+		DB.Model(&module.Video{}).Where("id = ?", comment.VideoID).Update("comment_count", gorm.Expr("comment_count - ?", 1))
+	}
+
+	return nil
+}
+
 func checkIsFavorite(videos *[]module.Video, userID uint) {
 	if userID == 0 {
 		return
@@ -183,5 +207,12 @@ func checkIsFollow(videos any, userID uint) {
 		DB.Table("users_follows").
 			Select("EXISTS(SELECT 1 FROM users_follows WHERE user_id = ? AND follow_id = ?) AS is_follow", userID, (*x).ID).
 			Scan(&(*x).IsFollow)
+
+	case *[]module.Comment:
+		for i := 0; i < len(*x); i++ {
+			DB.Table("users_follows").
+				Select("EXISTS(SELECT 1 FROM users_follows WHERE user_id = ? AND follow_id = ?) AS is_follow", userID, (*x)[i].User.ID).
+				Scan(&(*x)[i].User.IsFollow)
+		}
 	}
 }
