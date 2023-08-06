@@ -1,5 +1,7 @@
 # douyin-simple
 
+接口文档: https://apifox.com/apidoc/shared-09d88f32-0b6c-4157-9d07-a36d32d7a75c/api-50717106
+
 ## 启动后端服务
 ```shell
 git clone https://github.com/Godzizizilla/douyin-simple.git
