@@ -1,10 +1,14 @@
 # douyin-simple
 
-## 开发进度
+## 启动后端服务
+```shell
+git clone https://github.com/Godzizizilla/douyin-simple.git
+go mod tidy
+go run .
+```
 
-- 2023-07-28
-  - GORM建表: User, JWT认证, 哈希密码
-  - 实现注册, 登录, 获取用户信息接口
-- 2023-07-29
-  - ffmpeg获取关键帧, GORM建表: Video
-  - 实现发布视频, 获取视频列表接口
+## 设置App
+
+1. 安装app-release.apk
+2. 长按"我"设置后端服务地址为: `http://120.78.77.53:7788` 保存并重启
+3. 测试账户: 用户名: 小徐 密码: 123456
