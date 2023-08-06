@@ -2,7 +2,7 @@ package controller
 
 /*var DemoVideos = []Video{
 	{
-		Id:     1,
+		ID:     1,
 		Author: DemoUser,
 		// https://www.w3schools.com/html/movie.mp4
 		// https://cdn.pixabay.com/photo/2016/03/27/18/10/bear-1283347_1280.jpg
@@ -16,7 +16,7 @@ package controller
 
 var DemoComments = []Comment{
 	{
-		Id:         1,
+		ID:         1,
 		User:       DemoUser,
 		Content:    "Test Comment",
 		CreateDate: "05-01",
@@ -24,7 +24,7 @@ var DemoComments = []Comment{
 }
 
 var DemoUser = User{
-	Id:            1,
+	ID:            1,
 	Name:          "TestUser",
 	FollowCount:   0,
 	FollowerCount: 0,

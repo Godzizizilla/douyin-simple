@@ -25,7 +25,7 @@ func InitDB() {
 	DB = db
 	fmt.Println("Connected to the database!")
 
-	db.AutoMigrate(&module.User{}, &module.Video{}, &module.Comment{})
+	db.AutoMigrate(&module.User{}, &module.Video{}, &module.Comment{}, module.Message{})
 
 	/*var video module.Video
 	db.Model(&module.Video{}).
@@ -166,7 +166,7 @@ func CommentAction(comment *module.Comment, action module.CommentAction) error {
 		DB.Model(&module.Comment{}).Joins("User").First(comment)
 		DB.Model(&module.Video{}).Where("id = ?", comment.VideoID).Update("comment_count", gorm.Expr("comment_count + ?", 1))
 	} else {
-		if err := DB.Delete(&module.Comment{}, comment.Id).Error; err != nil {
+		if err := DB.Delete(&module.Comment{}, comment.ID).Error; err != nil {
 			return errors.New("删除评论失败")
 		}
 		DB.Model(&module.Video{}).Where("id = ?", comment.VideoID).Update("comment_count", gorm.Expr("comment_count - ?", 1))
@@ -226,6 +226,25 @@ func GetFriendListByUserID(userID uint, currentUserID uint) *[]module.User {
 		friends[i].IsFollow = true
 	}
 	return &friends
+}
+
+func MessageAction(message *module.Message) error {
+	if err := DB.Create(message).Error; err != nil {
+		return errors.New("添加消息失败")
+	}
+	return nil
+}
+
+func GetMessageListByUserID(toUserID uint, currentUserID uint, timestamp int64) *[]module.Message {
+	var messages []module.Message
+	if timestamp == 0 {
+		DB.Where("(to_user_id = ? and from_user_id = ?) or (to_user_id = ? and from_user_id = ?)", toUserID, currentUserID, currentUserID, toUserID).Order("created_at").Find(&messages)
+		return &messages
+	}
+	DB.Where("(to_user_id = ? and from_user_id = ?) or (to_user_id = ? and from_user_id = ?)", toUserID, currentUserID, currentUserID, toUserID).
+		Where("create_time > ?", timestamp+1000).
+		Order("created_at").Find(&messages)
+	return &messages
 }
 
 func checkIsFavorite(videos *[]module.Video, userID uint) {

@@ -63,7 +63,7 @@ type UsersFollows struct {
 }
 
 type Comment struct {
-	Id         uint      `json:"id,omitempty"`
+	ID         uint      `json:"id,omitempty" gorm:"primarykey"`
 	Content    string    `json:"content,omitempty"`
 	CreateDate string    `json:"create_date,omitempty"`
 	CreatedAt  time.Time `json:"-"`
@@ -71,6 +71,15 @@ type Comment struct {
 	User       User      `json:"user"`
 	VideoID    uint      `json:"-"`
 	Video      Video     `json:"-"`
+}
+
+type Message struct {
+	ID         uint      `json:"id,omitempty" gorm:"primarykey"`
+	ToUserID   uint      `json:"to_user_id"`
+	FromUserID uint      `json:"from_user_id"`
+	Content    string    `json:"content,omitempty"`
+	CreatedAt  time.Time `json:"-"`
+	CreateTime int64     `json:"create_time,omitempty"`
 }
 
 func (u *User) BeforeCreate(tx *gorm.DB) (err error) {

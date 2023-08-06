@@ -44,7 +44,7 @@ func CommentAction(c *gin.Context) {
 
 	} else if actionType == module.DeleteComment {
 		commentID, _ := strconv.Atoi(c.Query("comment_id"))
-		comment.Id = uint(commentID)
+		comment.ID = uint(commentID)
 		comment.VideoID = uint(videoID)
 		fmt.Println(commentID, videoID)
 		if err := database.CommentAction(&comment, actionType); err == nil {

@@ -20,3 +20,9 @@ const (
 	Follow   RelationAction = "1"
 	UnFollow RelationAction = "2"
 )
+
+type MessageAction string
+
+const (
+	Send MessageAction = "1"
+)
