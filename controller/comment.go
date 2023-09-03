@@ -63,10 +63,10 @@ func CommentAction(c *gin.Context) {
 }
 
 func CommentList(c *gin.Context) {
-	userID := c.MustGet("userID").(uint)
+	// userID := c.MustGet("userID").(uint)
 	videoID, _ := strconv.Atoi(c.Query("video_id"))
 
-	comments := database.GetCommentsByVideoID(uint(videoID), userID)
+	comments := database.GetCommentsByVideoID(uint(videoID))
 	c.JSON(http.StatusOK, module.CommentListResponse{
 		Response:    module.Response{StatusCode: 0},
 		CommentList: *comments,

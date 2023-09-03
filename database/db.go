@@ -118,7 +118,7 @@ func GetVideosBeforeTimestamp(timestamp time.Time, userID uint) (*[]module.Video
 
 	var videos []module.Video
 	// 由于更可能是不同用户的视频, 所以使用.Joins("Author")
-	if err := DB.Model(&module.Video{}).Joins("Author").Where("videos.created_at < ?", timestamp).Find(&videos).Error; err != nil {
+	if err := DB.Limit(30).Model(&module.Video{}).Joins("Author").Where("videos.created_at < ?", timestamp).Order("videos.created_at desc").Find(&videos).Error; err != nil {
 		return nil, errors.New("没有在这之前的视频")
 	}
 
@@ -151,10 +151,9 @@ func FavoriteAction(userID uint, videoID uint, action module.FavoriteAction) err
 	return errors.New("favorite action error")
 }
 
-func GetCommentsByVideoID(videoID uint, currentUserID uint) *[]module.Comment {
+func GetCommentsByVideoID(videoID uint) *[]module.Comment {
 	var comments []module.Comment
 	DB.Model(&module.Comment{}).Joins("User").Where("video_id = ?", videoID).Order("created_at desc").Find(&comments)
-	checkIsFollow(&comments, currentUserID)
 	return &comments
 }
 

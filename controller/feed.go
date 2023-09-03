@@ -27,16 +27,19 @@ func Feed(c *gin.Context) {
 	}
 
 	videos, err := database.GetVideosBeforeTimestamp(timestamp, userID)
-	if err != nil {
+	if err != nil || len(*videos) == 0 {
 		c.JSON(http.StatusOK, module.Response{
 			StatusCode: 1,
 			StatusMsg:  "没有更早的视频了",
 		})
+		return
 	}
+
+	lastVideo := &(*videos)[len(*videos)-1]
 
 	c.JSON(http.StatusOK, module.FeedResponse{
 		Response:  module.Response{StatusCode: 0},
 		VideoList: *videos,
-		NextTime:  time.Now().Unix(),
+		NextTime:  lastVideo.CreatedAt.Unix(),
 	})
 }
